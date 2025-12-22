@@ -2,13 +2,19 @@ package dto
 
 type CreateUserRequest struct {
 	Username string `json:"username" binding:"required,email"`
-	FullName string `json:"fullname" binding:"required"`
+	Password string `json:"password" binding:"required,min=6"`
+	FullName string `json:"full_name" binding:"required"`
 	Phone    string `json:"phone" binding:"omitempty"`
 	Position string `json:"position" binding:"omitempty"`
 }
 
+type LoginRequest struct {
+	Username string `json:"username" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=6"`
+}
+
 type UpdateUserRequest struct {
-	FullName string `json:"fullname" binding:"required"`
+	FullName string `json:"full_name" binding:"required"`
 	Phone    string `json:"phone" binding:"omitempty"`
 	Position string `json:"position" binding:"omitempty"`
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"golang-rest-user/database"
 	"golang-rest-user/handler"
+	"golang-rest-user/security"
 
 	//"golang-rest-user/middleware"
 
@@ -34,7 +35,21 @@ func main() {
 
 	userHandler := handler.NewUserHandler()
 
-	routes.RegisterRoutes(r, userHandler, tntHandler)
+	userRepoFactory := func(tenantCode string) (repository.UserRepo, error) {
+		db, ok := database.GetTenantDB(tenantCode)
+		if !ok {
+			return nil, err
+		}
+		return repository.NewUserRepo(db), nil
+	}
+
+	jwtCfg := security.LoadJWTConfig()
+	jwtManager := security.NewManager(jwtCfg)
+
+	authService := service.NewAuthService(userRepoFactory, jwtManager)
+	authHandler := handler.NewAuthHandler(authService)
+
+	routes.RegisterRoutes(r, userHandler, tntHandler, authHandler)
 
 	r.Run(":8080")
 

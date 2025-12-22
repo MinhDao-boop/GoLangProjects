@@ -8,6 +8,7 @@ import (
 	"golang-rest-user/dto"
 	"golang-rest-user/models"
 	"golang-rest-user/repository"
+	"golang-rest-user/security"
 
 	"gorm.io/gorm"
 )
@@ -39,8 +40,14 @@ func (s *userService) Create(req dto.CreateUserRequest) (*models.User, error) {
 		// continue if record not found
 	}
 
+	passEncrypted, err := security.Encrypt(req.Password)
+	if err != nil {
+		return nil, err
+	}
+
 	user := &models.User{
 		Username:  req.Username,
+		Password:  passEncrypted,
 		FullName:  req.FullName,
 		Phone:     req.Phone,
 		Position:  req.Position,

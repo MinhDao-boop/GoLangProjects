@@ -7,10 +7,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(r *gin.Engine, u *handler.UserHandler, t *handler.TenantHandler) {
+func RegisterRoutes(r *gin.Engine, u *handler.UserHandler, t *handler.TenantHandler, a *handler.AuthHandler) {
 	r.Use(middleware.RequestID())
 	v1 := r.Group("/api/v1")
 	{
+		auth := v1.Group("/auth")
+		auth.Use(middleware.TenantContextMiddleware())
+		{
+			auth.POST("/register", a.Register) // POST /api/v1/auth/register
+			auth.POST("/login", a.Login)       // POST /api/v1/auth/login
+		}
 		tenants := v1.Group("/tenants")
 		{
 			tenants.GET("", t.ListTenantResponse)   // GET /api/v1/tenants

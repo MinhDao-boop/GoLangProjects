@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	//"log"
 	"net/http"
 
 	"golang-rest-user/database"
@@ -8,6 +9,37 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+const ContextTenantCode = "resolved_tenant_code"
+
+func TenantContextMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		// 1️⃣ Ưu tiên tenant từ JWT (đã set bởi AuthMiddleware)
+		if tenantCode, ok := c.Get(ContextTenantCode); ok {
+			c.Set(ContextTenantCode, tenantCode)
+			c.Next()
+			return
+		}
+
+		// 2️⃣ Fallback: lấy từ header (login / register)
+		headerCode := c.GetHeader("X-Tenant-Code")
+		if headerCode != "" {
+			c.Set(ContextTenantCode, headerCode)
+			//log.Println("Tenant code from header:", headerCode)
+			c.Next()
+			return
+		}
+
+		response.Error(
+			c,
+			response.CodeBadRequest,
+			"tenant code is required",
+			nil,
+			http.StatusBadRequest,
+		)
+	}
+}
 
 func TenantDBMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
