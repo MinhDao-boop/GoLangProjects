@@ -10,6 +10,7 @@ import (
 	"golang-rest-user/security"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -49,6 +50,7 @@ func (s *tenantService) Create(req dto.CreateTenantRequest) (*models.Tenant, err
 		return nil, err
 	}
 	tenant := &models.Tenant{
+		ID:        uint(uuid.New().ID()),
 		Code:      req.Code,
 		Name:      req.Name,
 		DBUser:    encryptedUser,

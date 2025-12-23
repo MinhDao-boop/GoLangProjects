@@ -10,7 +10,7 @@ import (
 type RefreshTokenRepo interface {
 	Create(rToken *models.RefreshToken) error
 	FindValidByHash(hash string) (*models.RefreshToken, error)
-	Revoke(id uint) error
+	Revoke(id string) error
 	RevokeAllByUser(userID uint) error
 }
 
@@ -36,16 +36,16 @@ func (r *refreshTokenRepo) FindValidByHash(hash string) (*models.RefreshToken, e
 	return &rToken, nil
 }
 
-func (r *refreshTokenRepo) Revoke(id uint) error {
+func (r *refreshTokenRepo) Revoke(id string) error {
 	now := time.Now()
 	return r.db.Model(&models.RefreshToken{}).
 		Where("id = ? AND revoked_at IS NULL", id).
-		Update("revoked_at = ?", now).Error
+		Update("revoked_at", now).Error
 }
 
 func (r *refreshTokenRepo) RevokeAllByUser(userID uint) error {
 	now := time.Now()
 	return r.db.Model(models.RefreshToken{}).
 		Where("user_id = ? AND revoked_at IS NULL", userID).
-		Update("revoked_at = ?", now).Error
+		Update("revoked_at", now).Error
 }

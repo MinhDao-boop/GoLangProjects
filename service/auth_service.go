@@ -6,6 +6,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/google/uuid"
+
 	"golang-rest-user/dto"
 	"golang-rest-user/models"
 	"golang-rest-user/repository"
@@ -54,6 +56,7 @@ func (s *authService) Register(tenantCode string, req dto.CreateUserRequest) (*m
 	}
 
 	user := &models.User{
+		ID:       uint(uuid.New().ID()),
 		Username: req.Username,
 		Password: encryptedPass,
 		FullName: req.FullName,
@@ -101,6 +104,7 @@ func (s *authService) Login(tenantCode string, req dto.LoginRequest) (map[string
 	}
 
 	err = refreshRepo.Create(&models.RefreshToken{
+		ID:        uuid.NewString(),
 		UserID:    user.ID,
 		TokenHash: hash,
 		ExpiresAt: time.Now().Add(time.Hour * 24 * 7),
@@ -136,16 +140,21 @@ func (s *authService) Refresh(rToken string) (map[string]string, error) {
 	}
 
 	//revoke old refresh token
-	_ = refreshRepo.Revoke(storedRToken.ID)
+	if err = refreshRepo.Revoke(storedRToken.ID); err != nil {
+		return nil, err
+	}
 
 	newAToken, _ := s.jwtManager.GenerateAccessToken(claims.UserID, claims.Username, claims.TenantCode)
 	newRToken, _ := s.jwtManager.GenerateRefreshToken(claims.UserID, claims.TenantCode)
 
-	_ = refreshRepo.Create(&models.RefreshToken{
+	if err = refreshRepo.Create(&models.RefreshToken{
+		ID:        uuid.NewString(),
 		UserID:    claims.UserID,
 		TokenHash: hashToken(newRToken),
 		ExpiresAt: time.Now().Add(time.Hour * 24 * 7),
-	})
+	}); err != nil {
+		return nil, err
+	}
 
 	return map[string]string{
 		"access_token":  newAToken,

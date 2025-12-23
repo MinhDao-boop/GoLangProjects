@@ -10,6 +10,7 @@ import (
 	"golang-rest-user/repository"
 	"golang-rest-user/security"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -46,6 +47,7 @@ func (s *userService) Create(req dto.CreateUserRequest) (*models.User, error) {
 	}
 
 	user := &models.User{
+		ID:        uint(uuid.New().ID()),
 		Username:  req.Username,
 		Password:  passEncrypted,
 		FullName:  req.FullName,
