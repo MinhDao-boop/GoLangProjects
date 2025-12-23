@@ -16,7 +16,7 @@ func TenantContextMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		// 1️⃣ Ưu tiên tenant từ JWT (đã set bởi AuthMiddleware)
-		if tenantCode, ok := c.Get(ContextTenantCode); ok {
+		if tenantCode, ok := c.Get("tenant_code"); ok {
 			c.Set(ContextTenantCode, tenantCode)
 			c.Next()
 			return
