@@ -15,38 +15,30 @@ import (
 )
 
 type AuthService interface {
-	Register(tenantCode string, req dto.CreateUserRequest) (*models.User, error)
+	Register(req dto.CreateUserRequest) (*models.User, error)
 	Login(tenantCode string, req dto.LoginRequest) (map[string]string, error)
 	Refresh(refreshToken string) (map[string]string, error)
 	Logout(refreshToken string) error
 }
 
 type authService struct {
-	userRepoFactory         func(string) (repository.UserRepo, error)
-	refreshTokenRepoFactory func(string) (repository.RefreshTokenRepo, error)
-	jwtManager              *security.Manager
+	userRepo         repository.UserRepo
+	refreshTokenRepo repository.RefreshTokenRepo
+	jwtManager       *security.Manager
 }
 
-func NewAuthService(
-	userRepoFactory func(string) (repository.UserRepo, error),
-	refreshTokenRepoFactory func(string) (repository.RefreshTokenRepo, error),
-	jwtManager *security.Manager,
-) AuthService {
+func NewAuthService(userRepo repository.UserRepo, refreshTokenRepo repository.RefreshTokenRepo,
+	jwtManager *security.Manager) AuthService {
 	return &authService{
-		userRepoFactory:         userRepoFactory,
-		refreshTokenRepoFactory: refreshTokenRepoFactory,
-		jwtManager:              jwtManager,
+		userRepo:         userRepo,
+		refreshTokenRepo: refreshTokenRepo,
+		jwtManager:       jwtManager,
 	}
 }
 
-func (s *authService) Register(tenantCode string, req dto.CreateUserRequest) (*models.User, error) {
+func (s *authService) Register(req dto.CreateUserRequest) (*models.User, error) {
 
-	repo, err := s.userRepoFactory(tenantCode)
-	if err != nil {
-		return nil, err
-	}
-
-	if _, err := repo.GetByUsername(req.Username); err == nil {
+	if _, err := s.userRepo.GetByUsername(req.Username); err == nil {
 		return nil, errors.New("username already exists")
 	}
 
@@ -62,7 +54,7 @@ func (s *authService) Register(tenantCode string, req dto.CreateUserRequest) (*m
 		FullName: req.FullName,
 	}
 
-	if err := repo.Create(user); err != nil {
+	if err := s.userRepo.Create(user); err != nil {
 		return nil, err
 	}
 
@@ -71,12 +63,7 @@ func (s *authService) Register(tenantCode string, req dto.CreateUserRequest) (*m
 
 func (s *authService) Login(tenantCode string, req dto.LoginRequest) (map[string]string, error) {
 
-	repo, err := s.userRepoFactory(tenantCode)
-	if err != nil {
-		return nil, err
-	}
-
-	user, err := repo.GetByUsername(req.Username)
+	user, err := s.userRepo.GetByUsername(req.Username)
 	if err != nil {
 		return nil, errors.New("invalid credentials")
 	}
@@ -98,12 +85,7 @@ func (s *authService) Login(tenantCode string, req dto.LoginRequest) (map[string
 
 	hash := hashToken(rToken)
 
-	refreshRepo, err := s.refreshTokenRepoFactory(tenantCode)
-	if err != nil {
-		return nil, err
-	}
-
-	err = refreshRepo.Create(&models.RefreshToken{
+	err = s.refreshTokenRepo.Create(&models.RefreshToken{
 		ID:        uuid.NewString(),
 		UserID:    user.ID,
 		TokenHash: hash,
@@ -125,29 +107,27 @@ func hashToken(rToken string) string {
 
 func (s *authService) Refresh(rToken string) (map[string]string, error) {
 	claims, err := s.jwtManager.ParseToken(rToken)
+
 	if err != nil || claims.Type != "refresh" {
 		return nil, errors.New("invalid refresh token")
 	}
 
-	refreshRepo, err := s.refreshTokenRepoFactory(claims.TenantCode)
-	if err != nil {
-		return nil, err
-	}
-
-	storedRToken, err := refreshRepo.FindValidByHash(hashToken(rToken))
+	storedRToken, err := s.refreshTokenRepo.FindValidByHash(hashToken(rToken))
 	if err != nil {
 		return nil, errors.New("refresh token revoked")
 	}
 
 	//revoke old refresh token
-	if err = refreshRepo.Revoke(storedRToken.ID); err != nil {
+	if err = s.refreshTokenRepo.Revoke(storedRToken.ID); err != nil {
 		return nil, err
 	}
 
-	newAToken, _ := s.jwtManager.GenerateAccessToken(claims.UserID, claims.Username, claims.TenantCode)
+	user, _ := s.userRepo.GetByID(claims.UserID)
+
+	newAToken, _ := s.jwtManager.GenerateAccessToken(claims.UserID, user.Username, claims.TenantCode)
 	newRToken, _ := s.jwtManager.GenerateRefreshToken(claims.UserID, claims.TenantCode)
 
-	if err = refreshRepo.Create(&models.RefreshToken{
+	if err = s.refreshTokenRepo.Create(&models.RefreshToken{
 		ID:        uuid.NewString(),
 		UserID:    claims.UserID,
 		TokenHash: hashToken(newRToken),
@@ -167,9 +147,6 @@ func (s *authService) Logout(rToken string) error {
 	if err != nil || claims.Type != "refresh" {
 		return errors.New("invalid refresh token")
 	}
-	refreshRepo, err := s.refreshTokenRepoFactory(claims.TenantCode)
-	if err != nil {
-		return err
-	}
-	return refreshRepo.RevokeAllByUser(claims.UserID)
+
+	return s.refreshTokenRepo.RevokeAllByUser(claims.UserID)
 }

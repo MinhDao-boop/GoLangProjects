@@ -12,6 +12,7 @@ import (
 func AuthMiddleware(jwtManager *security.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		auth := c.GetHeader("Authorization")
+
 		if !strings.HasPrefix(auth, "Bearer ") {
 			response.Error(c, response.CodeBadRequest, "Unauthorized", nil, http.StatusUnauthorized)
 			return

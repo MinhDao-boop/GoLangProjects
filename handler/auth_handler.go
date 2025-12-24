@@ -5,33 +5,42 @@ import (
 	"net/http"
 
 	"golang-rest-user/dto"
-	"golang-rest-user/middleware"
+	"golang-rest-user/repository"
 	"golang-rest-user/response"
+	"golang-rest-user/security"
 	"golang-rest-user/service"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-type AuthHandler struct {
-	authService service.AuthService
+type AuthHandler struct{}
+
+func NewAuthHandler() *AuthHandler {
+	return &AuthHandler{}
 }
 
-func NewAuthHandler(authService service.AuthService) *AuthHandler {
-	return &AuthHandler{authService: authService}
+func getAuthService(c *gin.Context) service.AuthService {
+	db := c.MustGet("TENANT_DB").(*gorm.DB)
+	userRepo := repository.NewUserRepo(db)
+	refreshTokenRepo := repository.NewRefreshTokenRepo(db)
+	jwtConfig := security.LoadJWTConfig()
+	jwtManager := security.NewManager(jwtConfig)
+	authSvc := service.NewAuthService(userRepo, refreshTokenRepo, jwtManager)
+	return authSvc
 }
 
 // POST /auth/register
 func (h *AuthHandler) Register(c *gin.Context) {
+	authSvc := getAuthService(c)
 	var req dto.CreateUserRequest
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, response.CodeBadRequest, "invalid request", err, http.StatusBadRequest)
 		return
 	}
 
-	tenantCode := c.GetString(middleware.ContextTenantCode)
-	//log.Println("Registering user for tenant:", tenantCode)
-
-	user, err := h.authService.Register(tenantCode, req)
+	user, err := authSvc.Register(req)
 	if err != nil {
 		response.Error(c, response.CodeBadRequest, err.Error(), nil, http.StatusBadRequest)
 		return
@@ -42,15 +51,16 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 // POST /auth/login
 func (h *AuthHandler) Login(c *gin.Context) {
+	authSvc := getAuthService(c)
 	var req dto.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, response.CodeBadRequest, err.Error(), err, http.StatusBadRequest)
 		return
 	}
 
-	tenantCode := c.GetString(middleware.ContextTenantCode)
+	tenantCode := c.GetHeader("X-Tenant-Code")
 
-	tokens, err := h.authService.Login(tenantCode, req)
+	tokens, err := authSvc.Login(tenantCode, req)
 	if err != nil {
 		response.Error(c, response.CodeBadRequest, err.Error(), nil, http.StatusUnauthorized)
 		return
@@ -61,13 +71,14 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 // POST /auth/refresh
 func (h *AuthHandler) Refresh(c *gin.Context) {
+	authSvc := getAuthService(c)
 	var req dto.RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, response.CodeBadRequest, err.Error(), nil, http.StatusBadRequest)
 		return
 	}
 
-	tokens, err := h.authService.Refresh(req.RefreshToken)
+	tokens, err := authSvc.Refresh(req.RefreshToken)
 	if err != nil {
 		response.Error(c, response.CodeBadRequest, err.Error(), nil, http.StatusUnauthorized)
 		return
@@ -77,13 +88,14 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 
 // POST /auth/logout
 func (h *AuthHandler) Logout(c *gin.Context) {
+	authSvc := getAuthService(c)
 	var req dto.LogoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, response.CodeBadRequest, err.Error(), nil, http.StatusBadRequest)
 		return
 	}
 
-	if err := h.authService.Logout(req.RefreshToken); err != nil {
+	if err := authSvc.Logout(req.RefreshToken); err != nil {
 		response.Error(c, response.CodeBadRequest, err.Error(), nil, http.StatusUnauthorized)
 		return
 	}

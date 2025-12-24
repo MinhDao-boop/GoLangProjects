@@ -51,7 +51,7 @@ func (h *UserHandler) ListUsersResponse(c *gin.Context) {
 	resp := []dto.UserResponse{}
 	for _, u := range users {
 		resp = append(resp, dto.UserResponse{
-			ID: u.ID, Username: u.Username, FullName: u.FullName, Phone: u.Phone, Position: u.Position,
+			ID: u.ID, Username: u.Username, Password: u.Password, FullName: u.FullName, Phone: u.Phone, Position: u.Position,
 			CreatedAt: u.CreatedAt.Format(time.RFC3339), UpdatedAt: u.UpdatedAt.Format(time.RFC3339),
 		})
 	}

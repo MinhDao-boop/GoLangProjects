@@ -11,14 +11,6 @@ func RegisterRoutes(r *gin.Engine, u *handler.UserHandler, t *handler.TenantHand
 	r.Use(middleware.RequestID())
 	v1 := r.Group("/api/v1")
 	{
-		auth := v1.Group("/auth")
-		auth.Use(middleware.TenantContextMiddleware())
-		{
-			auth.POST("/register", a.Register) // POST /api/v1/auth/register
-			auth.POST("/login", a.Login)       // POST /api/v1/auth/login
-			auth.POST("/logout", a.Logout)     // POST /api/v1/auth/logout
-			auth.POST("refresh", a.Refresh)    // POST /api/v1/auth/refresh
-		}
 		tenants := v1.Group("/tenants")
 		{
 			tenants.GET("", t.ListTenantResponse)   // GET /api/v1/tenants
@@ -37,6 +29,14 @@ func RegisterRoutes(r *gin.Engine, u *handler.UserHandler, t *handler.TenantHand
 			users.GET("/:id", u.GetByUserID)       // GET /api/v1/users/:id
 			users.PUT("/:id", u.UpdateUserRequest) // PUT /api/v1/users/:id
 			users.DELETE("/:id", u.DeleteUser)     // DELETE /api/v1/users/:id
+		}
+		auth := v1.Group("/auth")
+		auth.Use(middleware.TenantDBMiddleware())
+		{
+			auth.POST("/register", a.Register) // POST /api/v1/auth/register
+			auth.POST("/login", a.Login)       // POST /api/v1/auth/login
+			auth.POST("/logout", a.Logout)     // POST /api/v1/auth/logout
+			auth.POST("/refresh", a.Refresh)   // POST /api/v1/auth/refresh
 		}
 	}
 }
