@@ -15,6 +15,8 @@ type TenantRepo interface {
 	Update(tenant *models.Tenant) error
 	DeleteByID(id uint) error
 	GetByTenantCode(tenantCode string) (*models.Tenant, error)
+	RecoverDeleted(id uint) error
+	FindDeletedByID(id uint) (*models.Tenant, error)
 }
 
 type tenantRepo struct {
@@ -66,4 +68,21 @@ func (r *tenantRepo) Update(tenant *models.Tenant) error {
 
 func (r *tenantRepo) DeleteByID(id uint) error {
 	return r.db.Delete(&models.Tenant{}, id).Error
+}
+
+func (r *tenantRepo) RecoverDeleted(id uint) error {
+	return r.db.Unscoped().Model(&models.Tenant{}).
+		Where("id = ? AND deleted_at IS NOT NULL", id).
+		Update("deleted_at", nil).Error
+}
+
+func (r *tenantRepo) FindDeletedByID(id uint) (*models.Tenant, error) {
+	var tenant models.Tenant
+
+	err := r.db.Unscoped().Where("deleted_at IS NOT NULL").First(&tenant, id).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &tenant, nil
 }

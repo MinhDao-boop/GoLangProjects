@@ -11,3 +11,8 @@ type Claims struct {
 	Type       string `json:"type"`
 	jwt.RegisteredClaims
 }
+
+type TokenResult struct {
+	Token     string
+	ExpiresIn int64
+}

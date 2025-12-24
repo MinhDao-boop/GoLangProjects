@@ -18,14 +18,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error loading .env file")
 	}
-	database.ConnectMasterDB()
-	DB := database.DB
-	if err := database.InitTenantDBs(database.DB); err != nil {
+	masterDB := database.ConnectMasterDB()
+	if err := database.InitTenantDBs(masterDB); err != nil {
 		log.Fatal(err)
 	}
 	r := gin.Default()
 
-	tntRepo := repository.NewTenantRepo(DB)
+	tntRepo := repository.NewTenantRepo(masterDB)
 	tntSvc := service.NewTenantService(tntRepo)
 	tntHandler := handler.NewTenantHandler(tntSvc)
 

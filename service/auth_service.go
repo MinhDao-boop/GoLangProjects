@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -83,20 +84,23 @@ func (s *authService) Login(tenantCode string, req dto.LoginRequest) (map[string
 		return nil, err
 	}
 
-	hash := hashToken(rToken)
+	hash := hashToken(rToken.Token)
 
 	err = s.refreshTokenRepo.Create(&models.RefreshToken{
 		ID:        uuid.NewString(),
 		UserID:    user.ID,
 		TokenHash: hash,
-		ExpiresAt: time.Now().Add(time.Hour * 24 * 7),
+		ExpiresAt: time.Now().UTC().Add(time.Hour * 24 * 7),
 	})
 	if err != nil {
 		return nil, err
 	}
+
 	return map[string]string{
-		"access_token":  aToken,
-		"refresh_token": rToken,
+		"access_token":       aToken.Token,
+		"expires_in":         strconv.FormatInt(aToken.ExpiresIn, 10),
+		"refresh_token":      rToken.Token,
+		"refresh_expires_in": strconv.FormatInt(rToken.ExpiresIn, 10),
 	}, nil
 }
 
@@ -130,15 +134,17 @@ func (s *authService) Refresh(rToken string) (map[string]string, error) {
 	if err = s.refreshTokenRepo.Create(&models.RefreshToken{
 		ID:        uuid.NewString(),
 		UserID:    claims.UserID,
-		TokenHash: hashToken(newRToken),
-		ExpiresAt: time.Now().Add(time.Hour * 24 * 7),
+		TokenHash: hashToken(newRToken.Token),
+		ExpiresAt: time.Now().UTC().Add(time.Hour * 24 * 7),
 	}); err != nil {
 		return nil, err
 	}
 
 	return map[string]string{
-		"access_token":  newAToken,
-		"refresh_token": newRToken,
+		"access_token":       newAToken.Token,
+		"expires_in":         strconv.FormatInt(newAToken.ExpiresIn, 10),
+		"refresh_token":      newRToken.Token,
+		"refresh_expires_in": strconv.FormatInt(newRToken.ExpiresIn, 10),
 	}, nil
 }
 

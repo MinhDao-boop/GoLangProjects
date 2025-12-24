@@ -85,6 +85,20 @@ func CheckConnectMasterDB(tenant models.Tenant) (bool, error) {
 	return true, nil
 }
 
+func CheckTenantDBExists(masterDB *gorm.DB, dbName string) (bool, error) {
+	var name string
+
+	if err := masterDB.Raw(`
+		SELECT SCHEMA_NAME
+		FROM INFORMATION_SCHEMA.SCHEMATA
+		WHERE SCHEMA_NAME = ?
+	`, dbName).Scan(&name).Error; err != nil {
+		return false, err
+	}
+
+	return name != "", nil
+}
+
 func PingDB(db *gorm.DB) error {
 	sqlDB, err := db.DB()
 	if err != nil {
@@ -97,7 +111,7 @@ func PingDB(db *gorm.DB) error {
 }
 
 func CreateTenantDatabase(dbName string) error {
-	var masterDB = DB
+	var masterDB = ConnectMasterDB()
 	return masterDB.Exec("CREATE DATABASE IF NOT EXISTS " + dbName).Error
 }
 
@@ -151,6 +165,6 @@ func CloseTenantDB(oldDB *gorm.DB) error {
 }
 
 func DropTenantDatabase(dbName string) error {
-	var masterDB = DB
+	var masterDB = ConnectMasterDB()
 	return masterDB.Exec("DROP DATABASE IF EXISTS " + dbName).Error
 }

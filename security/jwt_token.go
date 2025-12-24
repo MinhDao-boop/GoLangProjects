@@ -14,7 +14,7 @@ func NewManager(jwtConfig *JWTConfig) *Manager {
 	return &Manager{jwtConfig: jwtConfig}
 }
 
-func (m *Manager) GenerateAccessToken(userID uint, username, tenantCode string) (string, error) {
+func (m *Manager) GenerateAccessToken(userID uint, username, tenantCode string) (*TokenResult, error) {
 	claims := &Claims{
 		UserID:     userID,
 		Username:   username,
@@ -27,10 +27,17 @@ func (m *Manager) GenerateAccessToken(userID uint, username, tenantCode string) 
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(m.jwtConfig.SecretKey)
+	signed, err := token.SignedString(m.jwtConfig.SecretKey)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenResult{
+		Token:     signed,
+		ExpiresIn: int64(m.jwtConfig.AccessTokenTTL.Seconds()),
+	}, nil
 }
 
-func (m *Manager) GenerateRefreshToken(userID uint, tenantCode string) (string, error) {
+func (m *Manager) GenerateRefreshToken(userID uint, tenantCode string) (*TokenResult, error) {
 	rClaims := &Claims{
 		UserID:     userID,
 		TenantCode: tenantCode,
@@ -42,7 +49,14 @@ func (m *Manager) GenerateRefreshToken(userID uint, tenantCode string) (string, 
 		},
 	}
 	rToken := jwt.NewWithClaims(jwt.SigningMethodHS256, rClaims)
-	return rToken.SignedString(m.jwtConfig.SecretKey)
+	signed, err := rToken.SignedString(m.jwtConfig.SecretKey)
+	if err != nil {
+		return nil, err
+	}
+	return &TokenResult{
+		Token:     signed,
+		ExpiresIn: int64(m.jwtConfig.RefreshTokenTTL.Seconds()),
+	}, nil
 }
 
 func (m *Manager) ParseToken(tokenStr string) (*Claims, error) {

@@ -154,3 +154,23 @@ func (h *TenantHandler) DeleteTenant(c *gin.Context) {
 	//c.Status(http.StatusNoContent)
 	response.Success(c, gin.H{"deleted": true})
 }
+
+// PUT /tenants/deleted/:id
+func (h *TenantHandler) RecoverDeleted(c *gin.Context) {
+	id, _ := strconv.Atoi(c.Param("id"))
+	uid := uint(id)
+	tenant, err := h.svc.RecoverDeleted(uid)
+	if err != nil {
+		response.Error(c, response.CodeBadRequest, err.Error(), nil, http.StatusBadRequest)
+	}
+	response.Success(c, gin.H{"recovered": dto.TenantResponse{
+		ID:        tenant.ID,
+		Code:      tenant.Code,
+		Name:      tenant.Name,
+		DBHost:    tenant.DBHost,
+		DBPort:    tenant.DBPort,
+		DBName:    tenant.DBName,
+		CreatedAt: tenant.CreatedAt.Format(time.RFC3339),
+		UpdatedAt: tenant.UpdatedAt.Format(time.RFC3339),
+	}})
+}

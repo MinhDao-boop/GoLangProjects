@@ -20,6 +20,7 @@ type TenantService interface {
 	List(page, pageSize int, search string) ([]models.Tenant, int64, error)
 	Update(id uint, req dto.UpdateTenantRequest) (*models.Tenant, error)
 	Delete(id uint) error
+	RecoverDeleted(id uint) (*models.Tenant, error)
 }
 
 type tenantService struct {
@@ -58,14 +59,11 @@ func (s *tenantService) Create(req dto.CreateTenantRequest) (*models.Tenant, err
 		DBHost:    req.DBHost,
 		DBPort:    req.DBPort,
 		DBName:    req.DBName,
-		CreatedAt: time.Now(),
+		CreatedAt: time.Now().UTC(),
 	}
 	//check connect to master db
 	connected, err := database.CheckConnectMasterDB(*tenant)
-	if err != nil {
-		return nil, err
-	}
-	if !connected {
+	if err != nil || !connected {
 		return nil, errors.New("cannot connect to master database with provided credentials")
 	}
 	// flag to indicate if tenant db is created
@@ -156,10 +154,7 @@ func (s *tenantService) Update(id uint, req dto.UpdateTenantRequest) (*models.Te
 	tenant.UpdatedAt = time.Now().UTC()
 	//check connect to master db
 	connected, err := database.CheckConnectMasterDB(*tenant)
-	if err != nil {
-		return nil, err
-	}
-	if !connected {
+	if err != nil || !connected {
 		return nil, errors.New("cannot connect to master database with provided credentials")
 	}
 	// flag to indicate if new db connection is established
@@ -211,4 +206,40 @@ func (s *tenantService) Delete(id uint) error {
 		return err
 	}
 	return s.repo.DeleteByID(id)
+}
+
+func (s *tenantService) RecoverDeleted(id uint) (*models.Tenant, error) {
+	tenant, err := s.repo.FindDeletedByID(id)
+	if err != nil {
+		return nil, err
+	}
+
+	masterDB := database.ConnectMasterDB()
+	ok, err := database.CheckTenantDBExists(masterDB, tenant.DBName)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		// create tenant database
+		if err := database.CreateTenantDatabase(tenant.DBName); err != nil {
+			return nil, err
+		}
+		// connect to tenant database
+		tenantDB, err := database.ConnectTenantDB(*tenant)
+		if err != nil {
+			return nil, err
+		}
+		// migrate tenant database
+		if err := database.Migrate(tenantDB); err != nil {
+			return nil, err
+		}
+		// ping tenant database
+		if err := database.PingDB(tenantDB); err != nil {
+			return nil, err
+		}
+		// add tenant db to map
+		database.SetTenantDB(tenant.Code, tenantDB)
+	}
+	s.repo.RecoverDeleted(id)
+	return tenant, nil
 }

@@ -13,11 +13,12 @@ func RegisterRoutes(r *gin.Engine, u *handler.UserHandler, t *handler.TenantHand
 	{
 		tenants := v1.Group("/tenants")
 		{
-			tenants.GET("", t.ListTenantResponse)   // GET /api/v1/tenants
-			tenants.POST("", t.CreateTenantRequest) // POST /api/v1/tenants
-			tenants.GET("/:id", t.GetByTenantID)    // GET /api/v1/tenants/:id
-			tenants.PUT("/:id", t.UpdateTenant)     // PUT /api/v1/tenants/:id
-			tenants.DELETE("/:id", t.DeleteTenant)  // DELETE /api/v1/tenants/:id
+			tenants.GET("", t.ListTenantResponse)         // GET /api/v1/tenants
+			tenants.POST("", t.CreateTenantRequest)       // POST /api/v1/tenants
+			tenants.GET("/:id", t.GetByTenantID)          // GET /api/v1/tenants/:id
+			tenants.PUT("/:id", t.UpdateTenant)           // PUT /api/v1/tenants/:id
+			tenants.DELETE("/:id", t.DeleteTenant)        // DELETE /api/v1/tenants/:id
+			tenants.PUT("/deleted/:id", t.RecoverDeleted) // PUT /tenants/deleted/:id
 		}
 
 		users := v1.Group("/users")
