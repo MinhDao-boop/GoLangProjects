@@ -49,7 +49,7 @@ func (s *authService) Register(req dto.CreateUserRequest) (*models.User, error) 
 	}
 
 	user := &models.User{
-		ID:       uint(uuid.New().ID()),
+		Uuid:     uuid.NewString(),
 		Username: req.Username,
 		Password: encryptedPass,
 		FullName: req.FullName,

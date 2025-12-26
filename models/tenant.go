@@ -15,6 +15,7 @@ type Tenant struct {
 	DBHost    string         `gorm:"size:50" json:"db_host"`
 	DBPort    string         `gorm:"size:50" json:"db_port"`
 	DBName    string         `gorm:"size:50; uniqueIndex" json:"db_name"`
+	Status    TenantStatus   `gorm:"type:enum('active', 'inactive'); default:'active'" json:"status"`
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`

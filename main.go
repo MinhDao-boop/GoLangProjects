@@ -3,6 +3,7 @@ package main
 import (
 	"golang-rest-user/database"
 	"golang-rest-user/handler"
+	"golang-rest-user/models"
 
 	"golang-rest-user/repository"
 	"golang-rest-user/routes"
@@ -10,15 +11,12 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file")
-	}
+
 	masterDB := database.ConnectMasterDB()
+	masterDB.AutoMigrate(&models.Tenant{})
 	if err := database.InitTenantDBs(masterDB); err != nil {
 		log.Fatal(err)
 	}
